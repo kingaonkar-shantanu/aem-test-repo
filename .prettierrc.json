@@ -1,0 +1,10 @@
+{
+  "trailingComma": "all",
+  "tabWidth": 2,
+  "singleQuote": true,
+  "bracketSpacing": true,
+  "arrowParens": "always",
+  "linebreak-style": "error unix",
+  "printWidth": 260,
+  "noMixedOperators": false
+}

@@ -1,0 +1,52 @@
+{
+	"total": 15,
+	"offset": 0,
+	"limit": 15,
+	"data": [{
+		"Key": "Audience",
+		"Value": "Audience Value - Global Level"
+	}, {
+		"Key": "Audience Specialty",
+		"Value": "Audience Specialty Value - Global Level"
+	}, {
+		"Key": "Primary Message",
+		"Value": ""
+	}, {
+		"Key": "Brand",
+		"Value": "Brand Value - Global Level"
+	}, {
+		"Key": "All Brands",
+		"Value": ""
+	}, {
+		"Key": "Business Unit",
+		"Value": ""
+	}, {
+		"Key": "Content platform",
+		"Value": "Content platform Value - Global Level"
+	}, {
+		"Key": "Primary Country",
+		"Value": "Primary Country Value - Global Level"
+	}, {
+		"Key": "Indication",
+		"Value": ""
+	}, {
+		"Key": "Language",
+		"Value": ""
+	}, {
+		"Key": "Therapeutic Area",
+		"Value": "Therapeutic Area - Global Level"
+	}, {
+		"Key": "Content ID",
+		"Value": ""
+	}, {
+		"Key": "Document Type",
+		"Value": ""
+	}, {
+		"Key": "Parent content ID",
+		"Value": ""
+	}, {
+		"Key": "All Countries",
+		"Value": ""
+	}],
+	":type": "sheet"
+}

@@ -1,0 +1,16 @@
+{
+	"total": 3,
+	"offset": 0,
+	"limit": 3,
+	"data": [{
+		"Key": "launch-library",
+		"Text": "AppMeasurement"
+	}, {
+		"Key": "launch-production-url",
+		"Text": "production"
+	}, {
+		"Key": "launch-non-production-url",
+		"Text": "nonprod"
+	}],
+	":type": "sheet"
+}

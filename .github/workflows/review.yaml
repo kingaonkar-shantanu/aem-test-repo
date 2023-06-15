@@ -1,0 +1,93 @@
+# change this to the event type you want to get the data for
+on:
+  repository_dispatch:
+    # these are *all* the review events
+    # types: [ review-submitted, review-approved, review-updated, review-rejected ]
+    types: [ review-submitted ]
+
+jobs:
+  configManager:
+    name: Config Manager
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install curl, jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install curl jq -y
+      - name: Get Token
+        env:
+          CLIENT_ID: ${{ secrets.FORMS_API_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.FORMS_API_CLIENT_SECRET }}
+        run: |
+          curl -X POST https://cat-platform.auth.eu-west-1.amazoncognito.com/oauth2/token \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -H "Accept: application/json" \
+            --data-urlencode "grant_type=client_credentials" \
+            --data-urlencode "client_id=$CLIENT_ID" \
+            --data-urlencode "client_secret=$CLIENT_SECRET" \
+            | jq -r '.access_token' > token.txt
+          echo "TOKEN=$(cat token.txt)" >> "$GITHUB_ENV"
+      - name: Post Form Tokens
+        env:
+          # use "production" for main branch and "staging" otherwise
+          ENVIRONMENT: production
+        # TODO: determine form token from event
+        # Example payload:
+        #       "client_payload": {
+        #         "pages": "/?form=form_builder__production__413__wd&form=form_builder__production_123__wd",
+        #         "reviewId": "default",
+        #         "status": "open"
+        #       }
+        # "pages" can have multiple values, separated by comma, each page can have multiple form= values
+        # for each form= value we then replace __wd with __review or __live (on review approved)
+        # for each review token, we do a GET on the https://ms-config-manager-$ENVIRONMENT.digitalpfizer.com/api/v1/configs/$FORM_TOKEN
+        # if we get a 404, there is no existing form, so we do PUT, otherwise we do POST
+        run: |
+          FORMS=$(echo ${{ github.event.client_payload.pages }} | tr ',' '&' | grep -o 'form=[^&]*' | cut -d= -f2)
+          for FORM in $FORMS; do
+            WD_NAME="$FORM"
+            REVIEW_NAME="${FORM/__wd/__review}"
+            LIVE_NAME="${FORM/__wd/__live}"
+
+            echo "Checking if $WD_NAME exists"
+            curl -s https://ms-config-manager-$ENVIRONMENT.digitalpfizer.com/api/v1/configs/$WD_NAME \
+              -H "Authorization: Bearer ${{ env.TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -o /dev/null \
+              -w "%{http_code}" \
+              | tee wd-status.txt
+            if [ "$(cat wd-status.txt)" == "404" ]; then
+              # this should not happen
+              exit 1
+            fi
+
+            echo "Fetching $WD_NAME payload"
+            curl -s https://ms-config-manager-$ENVIRONMENT.digitalpfizer.com/api/v1/configs/$WD_NAME \
+              -H "Authorization: Bearer ${{ env.TOKEN }}" \
+              -H "Content-Type: application/json" \
+              | tee wd-payload.json
+
+            # replace the configToken and name in the payload and create new payload files
+            cat wd-payload.json | jq ".data.config.configToken = \"$REVIEW_NAME\"" | jq ".data.config.name = \"$REVIEW_NAME\"" | jq ".data.config" | tee review-payload.json
+            cat wd-payload.json | jq ".data.config.configToken = \"$LIVE_NAME\"" | jq ".data.config.name = \"$LIVE_NAME\"" | jq ".data.config" > live-payload.json
+
+            echo "Checking if $REVIEW_NAME exists"
+            curl -s https://ms-config-manager-$ENVIRONMENT.digitalpfizer.com/api/v1/configs/$REVIEW_NAME \
+              -H "Authorization: Bearer ${{ env.TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -o /dev/null \
+              -w "%{http_code}" > review-status.txt
+            if [ "$(cat review-status.txt)" == "404" ]; then
+              echo "Form $REVIEW_NAME does not exist, creating"
+              curl -s -X POST https://ms-config-manager-$ENVIRONMENT.digitalpfizer.com/api/v1/configs \
+                -H "Authorization: Bearer ${{ env.TOKEN }}" \
+                -H "Content-Type: application/json" \
+                -d @review-payload.json
+            else
+              echo "Form $REVIEW_NAME exists, updating"
+              curl -s -X PUT https://ms-config-manager-$ENVIRONMENT.digitalpfizer.com/api/v1/configs/$REVIEW_NAME \
+                -H "Authorization: Bearer ${{ env.TOKEN }}" \
+                -H "Content-Type: application/json" \
+                -d @review-payload.json
+            fi
+          done
